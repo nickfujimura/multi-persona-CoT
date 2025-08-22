@@ -1,3 +1,4 @@
+APP_VERSION = "v2025.08.22-bp-merge+auditor2n"
 #!/usr/bin/env python3
 """
 Multi-Agent Problem Solver - Improved Version
@@ -29,6 +30,15 @@ import subprocess
 import platform
 import concurrent.futures
 import threading
+
+
+def _print_version_banner():
+    try:
+        print(f"RUNNING VERSION: {APP_VERSION}\n")
+    except Exception:
+        pass
+
+
 
 # For various LLM providers
 try:
@@ -1870,4 +1880,5 @@ async def main():
         sys.exit(1)
 
 if __name__ == "__main__":
+    _print_version_banner()
     asyncio.run(main())
