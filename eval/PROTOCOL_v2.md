@@ -59,8 +59,34 @@ Every eval prompt MUST end with:
 
 ### Decomposer
 
+The decomposer template uses a generate-and-select structure that
+forces the model to consider a wide candidate pool and select for
+orthogonality. This replaces an earlier "make perspectives genuinely
+divergent" instruction that was found (in iter-2 retrospective
+experiments) to produce homogeneous topical-only diversity. The
+generate-and-select version measurably shifts round-0 distributions
+on contested questions; see §9.11 for the change history.
+
 ```
-Generate exactly 4 distinct expert personas to debate this problem. For each, give: ROLE, CONCERNS (3 items separated by ' | '), TRAITS (one line). Make the perspectives genuinely divergent.
+You are a methodology decomposer. Your job: produce a roster of N
+expert personas who will debate this problem from genuinely
+ORTHOGONAL vantage points — not just different specialties, but
+different ways of evaluating truth.
+
+PROCESS:
+1. First, generate 20 candidate personas. Span a wide range of
+   perspectives: vary along whatever dimensions you think most
+   matter for genuine intellectual divergence. Don't just vary
+   topical specialty.
+
+2. SELECT N personas from your 20 to MAXIMIZE PAIRWISE ORTHOGONALITY
+   across whatever axes of variance you generated. Avoid selecting
+   two personas redundant in their approach — minimize overlap on
+   any single axis of variance.
+
+3. Output ONLY the N selected PERSONA blocks. Do not include the
+   candidate list, do not include selection rationale, do not
+   include any intro or outro.
 
 CRITICAL ANTI-LEAKAGE RULES:
 - Persona descriptions must be ROLE-ONLY: a role title, three concerns, one trait line.
@@ -69,7 +95,7 @@ CRITICAL ANTI-LEAKAGE RULES:
 - Do NOT reference or evaluate the answer choices (A, B, C, D) in the persona descriptions.
 - Personas describe WHO debates, not WHAT they conclude.
 
-Output ONLY the 4 PERSONA blocks in this exact format. No introduction, no extra commentary, no debate roleplay, no concluding remarks.
+Output format (only the N selected personas, no candidate list):
 
 PERSONA N
 ROLE: <role>
@@ -82,6 +108,16 @@ Problem: <QUESTION TEXT — substitute verbatim>
 
 Reason from your own knowledge only. Do not use external tools (no Bash, Python, web search, etc.).
 ```
+
+**Important — bias-leak warning when iterating on this prompt**:
+do NOT enumerate specific axes of variance (epistemological,
+question-reading, etc.) inside the prompt. An earlier draft listed
+"wording skepticism" and "adversarial-wording-skeptic" as
+enumerated values; this caused the decomposer to plant exactly the
+kind of meta-persona that the originating session expected to see,
+which is experimenter bias rather than discovery. The current
+prompt deliberately leaves the axes of variance for the decomposer
+to identify. Keep it that way.
 
 ### Round 0 (one per persona, parallel)
 
@@ -521,3 +557,30 @@ field (it can see gold while it filters but must not Write it anywhere).
 
 Untested in iter-2; iter-3 should validate that planners can correctly
 substitute Read'd question text into the decomposer template.
+
+### 9.11 Decomposer change: orthogonal generate-and-select
+
+Post-iter-2 retrospective experiments on a contested case found that
+the original "make perspectives genuinely divergent" instruction in §3
+produced personas that varied by topical specialty but not by epistemic
+mode — they were all chemistry/physics personas with different sub-fields,
+all reasoning under the same epistemological framework. Replacing the
+instruction with a generate-and-select-orthogonally structure (generate
+20 candidates, select N to maximize pairwise orthogonality) produced
+qualitatively different rosters that included philosopher-of-science,
+information-theoretic, Bayesian-epistemologist, and similar meta-personas
+alongside the topical specialists. On the contested case the round-0
+distribution shifted substantially toward the gold-aligned answer
+without affecting questions where round 0 was already unanimous.
+
+The §3 decomposer template has been updated to the orthogonal version.
+**Do not enumerate specific axes** (epistemological / question-reading /
+update-orientation, etc.) inside the prompt — see the bias-leak warning
+in §3. Keep the axes of variance for the decomposer to discover.
+
+Open questions left for further experimentation: whether brainstorm-30
+or larger candidate pool produces meaningfully better orthogonal
+selection vs brainstorm-20; whether per-persona confidence elicitation
+or probabilistic outputs interact usefully with the orthogonal pool.
+See `eval/methodology_experiments.md` for variants currently under
+investigation.
