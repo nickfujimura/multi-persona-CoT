@@ -231,7 +231,9 @@ gold-answer contamination from prior runs. Steps:
 
 1. **Confirm clean state**:
    ```bash
-   git status                          # should be on the eval branch
+   git status                          # working tree clean
+   git branch --show-current           # if on `main`, branch off: git checkout -b iteration-N
+                                       # if on a `claude/...` auto-branch, you're already set
    ls eval/transcripts/ | head         # iteration-1 transcripts present
    wc -l eval/used_csv_indices.txt     # ledger has prior indices
    ```

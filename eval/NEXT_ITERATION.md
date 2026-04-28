@@ -49,10 +49,14 @@ stop and reconsider.
 Run these in the listed order. Halt and ask the user if any check fails.
 
 ```bash
-# 3a. On the right branch
+# 3a. Branch handling
 git status --short
-# expect: clean working tree on the eval branch (no uncommitted changes
-# from prior iteration — those should already be merged)
+git branch --show-current
+# If your environment (e.g. claude.ai/code) auto-created a branch like
+# `claude/<task>-<suffix>`, you're already on the right branch — proceed.
+# If you're on `main`, create a fresh branch for this iteration:
+#     git checkout -b iteration-2     (or iteration-N for subsequent runs)
+# Either way, the working tree should be clean.
 
 # 3b. Ledger and CSV present
 test -f eval/used_csv_indices.txt && wc -l eval/used_csv_indices.txt
@@ -232,32 +236,48 @@ Add a new section "## Iteration 2 (N=10, sonnet eval)" with:
 Do NOT include verbatim question text in summary.md (per dataset terms).
 Refer to questions by id only.
 
-### 4g. Commit
+### 4g. Commit and merge to main
 
 ```bash
 git status --short
-# expect: M eval/summary.md, M eval/used_csv_indices.txt? — wait, ledger
-# is gitignored, should NOT appear. If it does, the gitignore is broken.
+# expect: only eval/summary.md modified.
+# Verify NOT listed: pilot_questions.jsonl, pilot_results.jsonl,
+# transcripts/, used_csv_indices.txt — all gitignored. If any of those
+# show, the gitignore is broken and the commit will leak question text.
 ```
 
-Stage and commit:
+Stage and commit on the iteration branch:
 
 ```bash
 git add eval/summary.md
-# only summary.md should be in this commit unless you intentionally
-# updated PROTOCOL_v2.md or csv_to_questions.py
+# only summary.md unless you intentionally updated PROTOCOL_v2.md or
+# csv_to_questions.py during this iteration
 
 git diff --cached --stat
-# verify only summary.md is staged
+# sanity-check the staged set
 
-git commit -m "Iteration 2 results: <one-line summary>" \
+git commit -m "Iteration N results: <one-line summary>" \
     --message "Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
-
-git status --short
-# expect: clean
 ```
 
-Push only if the user explicitly asks.
+Push the branch and fast-forward main:
+
+```bash
+# Push the iteration branch first
+git push -u origin HEAD
+
+# Fast-forward merge into main (same pattern iteration 1 used)
+git checkout main && git pull --ff-only origin main
+git merge --ff-only -    # the dash references the previous branch (iteration-N)
+git push origin main
+
+# Confirm
+git log --oneline -3
+```
+
+If the fast-forward fails (because main has moved ahead of the iteration
+branch), stop and ask the user how to proceed — don't force-push, don't
+attempt a merge commit without confirmation.
 
 ---
 
