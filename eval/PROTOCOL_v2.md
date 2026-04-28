@@ -110,14 +110,65 @@ Reason from your own knowledge only. Do not use external tools (no Bash, Python,
 ```
 
 **Important — bias-leak warning when iterating on this prompt**:
-do NOT enumerate specific axes of variance (epistemological,
-question-reading, etc.) inside the prompt. An earlier draft listed
-"wording skepticism" and "adversarial-wording-skeptic" as
-enumerated values; this caused the decomposer to plant exactly the
-kind of meta-persona that the originating session expected to see,
-which is experimenter bias rather than discovery. The current
-prompt deliberately leaves the axes of variance for the decomposer
-to identify. Keep it that way.
+
+The current prompt asks the decomposer to maximize orthogonality
+"across whatever axes of variance you generated." It deliberately
+does NOT enumerate what axes those should be. This is a load-bearing
+design choice and easy to undo by accident — the seductive next move
+is exactly the move that planted answers in an earlier draft.
+
+**What "enumerating axes" looks like — and why it's a bias leak**:
+
+Suppose you observe that the decomposer is producing personas with
+too little epistemic diversity (e.g., all topical specialists, all
+reasoning under the same epistemological framework). You may be
+tempted to add specifics to the prompt — something like:
+
+> *"Vary along: topical specialty, epistemological orientation
+> (rigorist / empiricist / skeptic / pragmatist), question-reading
+> style (literal / colloquial / adversarial-wording-skeptic),
+> update orientation (only-on-error / weight-of-evidence /
+> never-against-discipline)."*
+
+This looks like good prompt engineering. It is in fact a bias leak.
+The decomposer will faithfully produce personas matching each
+enumerated value — including, in the example above, a "wording-
+skeptic" or "adversarial-wording-skeptic" persona. If that persona
+is exactly the kind of perspective whose surfacing you wanted to
+test for, the experiment is contaminated: the persona exists
+BECAUSE the prompt told the decomposer to create it, not because
+orthogonality-reasoning surfaced it independently.
+
+**The originating session learned this the hard way**. A draft of
+this prompt enumerated "wording skepticism" and "adversarial-wording-
+skeptic" as values for epistemological/question-reading axes. The
+decomposer dutifully created Wording-Skeptic personas at every N.
+Those personas' votes in round 0 looked like evidence that the
+methodology had improved — but the test was invalid because the
+"discovery" was just retrieval of what had been planted in the
+prompt.
+
+**How to iterate without enumerating axes**:
+
+- Describe WHAT you want abstractly (orthogonality, divergence,
+  distinct epistemic modes) without specifying HOW (which dimensions
+  to vary, which categorical values to include).
+- Trust the decomposer to identify the relevant axes for each
+  question. Different questions may need different kinds of
+  diversity; pre-specifying axes prevents that adaptive selection
+  AND plants whatever the prompt-author thought mattered.
+- If you suspect a specific kind of perspective is missing, the
+  right test is comparison: run the prompt without enumeration vs.
+  with enumeration on a question whose answer you don't know in
+  advance, and check whether the enumeration improves accuracy or
+  just reproduces what was enumerated.
+
+**This warning generalizes to any prompt where you describe what
+to look for**: judges, synthesizers, pre-mortem instructions,
+round-N rebuttal templates. If you suspect failure-mode X, don't
+write "watch out for X" or "consider whether X applies." Write the
+prompt as if you didn't know about X, and see whether the
+methodology surfaces it on its own.
 
 ### Round 0 (one per persona, parallel)
 

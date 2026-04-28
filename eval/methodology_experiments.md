@@ -283,13 +283,21 @@ helps; otherwise extremization has nothing to extremize.
 
 Three guardrails the originating session learned the hard way:
 
-1. **Don't bake your hypothesis into prompts.** If you suspect the
-   methodology fails because of X, do NOT write a prompt that
-   pre-tells the personas/judge to "watch out for X" or "consider
-   whether X applies." That encodes the answer rather than testing
-   it. (The originating session's first v_judge prompt and first
-   v2 decomposer prompt both leaked in this way — both caught
-   only after the user flagged them.)
+1. **Don't bake your hypothesis into prompts.** If you suspect
+   the methodology fails because of X, do NOT write a prompt that
+   pre-tells the personas/judge/decomposer to "watch out for X,"
+   "consider whether X applies," or "vary along axes including X."
+   Each of these forms encodes the answer rather than testing it.
+   The decomposer's bias-leak warning in `PROTOCOL_v2.md` §3 walks
+   through one specific instance: a draft that enumerated "wording
+   skepticism" as a persona axis caused the decomposer to plant
+   exactly the meta-persona the originating session expected to
+   see, contaminating the experiment. **Read that section carefully
+   before iterating on any prompt in this methodology** — the trap
+   is subtle and reproducible. Write prompts as if you didn't know
+   about your hypothesis. If you must include guidance, prefer
+   abstract instructions ("orthogonal," "impartial," "rigorous")
+   over concrete enumerations ("orthogonal across axes A, B, C").
 
 2. **Tool returns come back in completion order, not dispatch
    order.** When mapping letters to personas, always Read the saved
