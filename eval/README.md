@@ -1,6 +1,14 @@
 # Multi-Persona CoT — Pilot Evaluation
 
-> **If you are a Claude Code session reading this:** this file is your task
+> **If you are a Claude Code session reading this AFTER iteration 1:**
+> this file is the original v1 task brief, kept for historical context.
+> For iteration 2 and beyond, your task brief is **`eval/NEXT_ITERATION.md`**
+> and the methodology is **`eval/PROTOCOL_v2.md`**. Iteration 1 results
+> are in **`eval/summary.md`**. Read those three files before proceeding.
+>
+> ---
+>
+> **If this is iteration 1 (no prior runs):** this file is your task
 > brief. Read all of it, then execute Section 4 (Runbook) end-to-end —
 > including running `python eval/csv_to_questions.py` yourself to prep the
 > question file. The user's only manual step is dropping

@@ -1,9 +1,11 @@
 # GPQA pilot data — must NOT be committed to public repo per dataset terms
+eval/GPQA/
 eval/gpqa_diamond.csv
 eval/gpqa*.csv
-eval/pilot_questions.jsonl
+eval/pilot_*.jsonl
 eval/pilot_results.jsonl
 eval/transcripts/
+eval/used_csv_indices.txt
 
 # Existing solver outputs (may contain prompt/question text verbatim)
 debate_conversation_*.log
