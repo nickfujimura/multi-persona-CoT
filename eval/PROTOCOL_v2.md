@@ -285,11 +285,239 @@ gold-answer contamination from prior runs. Steps:
   defensively without prompting. Worth experimenting with a meta-instruction:
   *"You are responsible for methodology quality. Identify and prevent any
   leakage risks you anticipate, without being prescribed the specific guard."*
-- **Variance check protocol**: iteration 1 found that A's accuracy on
-  gpqa_006 was ~80% across 10 trials despite being correct in our single
-  observation. Future iterations should sample A multiple times per question
-  (k≥3) when A's first answer disagrees with B's consensus, to distinguish
-  signal from variance.
+- **Variance check protocol** (resolved in iter-2 amendments §10): iter-1
+  sampled A 10× post-hoc on the contested case; iter-2 adopted k=4 inline,
+  fired alongside the rest of A. Iter-3 should run k=4 on every question to
+  build a baseline distribution, not just on contested ones.
 - **Synthesizer scope**: even when triggered (no consensus after 4 rounds),
   the synthesizer's job is ill-defined. Better tiebreaker: weighted majority
   vote with persona-confidence elicited in their final round.
+
+---
+
+## 9. Iteration-2 amendments (apply to all subsequent iterations)
+
+These amendments codify patterns the iter-2 session arrived at after
+several mid-run course corrections. They override or extend earlier sections
+where noted. Treat them as part of the protocol going forward.
+
+### 9.1 Hard architectural constraint: sub-agents cannot fan out
+
+The Claude Code `Agent` tool is only available to the **main session**.
+Sub-agents (any model: sonnet, opus, haiku) cannot recursively call `Agent`.
+They can use Read, Write, Bash, etc. — but they cannot dispatch their own
+sub-agents.
+
+Implications:
+- Don't try to delegate a "per-question end-to-end orchestrator" sub-agent
+  that itself fires decomposer/persona/synthesizer calls. It will fail.
+- The blinded planner pattern from §1 is the right shape: planner sub-agents
+  return JSON describing the next batch of `Agent` calls; main session
+  is the dumb transport that fires them.
+- For long fan-outs (40 round-0 evals, etc.), main session must dispatch
+  in batches of parallel tool_uses within single messages. Iter-2 confirmed
+  20 parallel `Agent` calls per message works reliably.
+
+### 9.2 Sub-agent self-save pattern (massive context-cost reduction)
+
+**The single most impactful pattern this iteration.** Each eval sub-agent is
+instructed to save its full reasoning to disk via Write before returning,
+and to return ONLY `Answer: <letter>` (or for decomposers, just the persona
+blocks) to main. This collapses the main-context cost of a 40-eval round
+from ~40,000 tokens of reasoning text down to ~400 tokens of letters.
+
+**Tool-permission rule for eval sub-agents going forward:**
+- Reasoning phase: NO tools (no Bash, Python, web, Read, anything).
+- After reasoning is complete: Write tool ONLY, used exactly once, to save
+  the full response (including the final-line `Answer: <letter>`) to a
+  pre-specified path.
+- Final reply text to main: just `Answer: <letter>` — no preamble, no
+  commentary, no echo of reasoning.
+
+The §3 round-0 and round-N templates should be amended with this addendum
+for every eval call. Pre-iter-2 templates (without the save instruction)
+are obsolete; do not use them.
+
+### 9.3 Planner Read pattern (avoids main-session contamination)
+
+**Round-N+1 planners should Read prior-round transcripts themselves** via
+the Read tool, rather than receiving them inline-embedded in the planner
+prompt by main session. This prevents two failure modes seen in iter-2:
+
+1. **Cycle-N planner re-emitting transcripts**: when a planner re-types a
+   prior-round transcript into its output prompt, it can introduce typos
+   and other transcription drift. (Iter-2 cycle-3 planner introduced one
+   benign typo this way before the pattern was introduced.)
+2. **Main session paraphrasing**: when main reads a transcript and writes a
+   summary of it into a prompt, that's main-session prompt construction —
+   exactly what §1 forbids. (Iter-2 main session did this once before
+   reverting.)
+
+**Tool-permission rule for planner sub-agents going forward:**
+- Read tool ONLY (to fetch prior-round transcripts and decomposer output
+  from disk).
+- No Bash, Python, web search, Write — and no inline tool use that performs
+  computation. Read is just retrieval.
+- Returns single-line JSON describing the next batch of `Agent` calls.
+
+Round-N+1 prompts that planners build should typically NOT inline
+prior-round transcripts. Instead, they should provide the round-N+1 eval
+sub-agent with file paths, and instruct that sub-agent to Read the
+transcripts itself (the eval sub-agent gets Read access for this round
+only, scoped to the named transcript paths).
+
+### 9.4 Opus auditor after each round
+
+Because the self-save pattern means main only ever sees `Answer: <letter>`,
+main cannot directly verify reasoning quality. After each round of evals
+fires, dispatch an opus sub-agent with Read access to the saved transcripts
+and ask it to spot-check:
+
+1. Each file exists and is non-empty.
+2. Each contains substantive reasoning (not just the letter).
+3. The final-line `Answer: <letter>` matches what main session received.
+4. Each persona retained its assigned identity (no persona drift / generic
+   reasoning).
+5. No tool-misuse signals (mentions of "I ran Python", "I called Bash",
+   "according to <URL>", etc. — should be absent because eval prompts
+   forbid those tools).
+6. No leakage signals (the prompt giving away the gold answer, planner
+   pre-solving, etc.).
+7. No refusal/error/truncation patterns.
+
+For contested questions, also ask the auditor to describe each persona's
+reasoning frame in 1 sentence (without revealing what it thinks the
+correct answer is).
+
+**Tool-permission rule for auditor sub-agents:** Read only. No Write.
+
+### 9.5 Opus blinded grader at end (replaces "main reads gold")
+
+The original protocol said main session reads gold answers from
+`pilot_questions.jsonl` only at the very end, when grading. Iter-2
+amended this further: **the parent session never reads gold at all.**
+
+Instead, dispatch an opus sub-agent with:
+- The path to `pilot_questions.jsonl` (the only place gold lives).
+- A small dict mapping each id to its observed A_answer, B_answer,
+  B_rounds_used, B_consensus_reached, B_synthesizer_used, and (for
+  contested ids) A_variance_check letters.
+
+The grader Reads `pilot_questions.jsonl`, computes A_correct / B_correct
+per row, writes `eval/pilot_results.jsonl`, and returns to main:
+- Headline accuracy: A=X/N, B=Y/N
+- Agreement rate
+- Flip-case list by id (A letter, B letter, gold letter, B_correct?)
+- Variance-check breakdown for any contested id
+
+The grader's return must NOT echo the question text or gold letters of
+non-contested ids back to main. Just numeric counts and contested-id
+specifics. This keeps main fully blinded even at grading time.
+
+**Tool-permission rule for the grader sub-agent:** Read + Write only.
+Read for `pilot_questions.jsonl`; Write for `pilot_results.jsonl`.
+
+### 9.6 Opus leak-checker before public commit
+
+The dataset terms forbid GPQA verbatim text in public commits. Even when
+main session has been blinded, summary text it writes can still slip
+identifying information through topic-specific vocabulary, unique
+numerical values, near-verbatim question fragments, or framing
+descriptions specific enough to fingerprint the question.
+
+**Before any `git commit` of `summary.md`** (or any other file that
+discusses contested cases), dispatch an opus leak-checker sub-agent with:
+- Path to the staged file (e.g. `eval/summary.md`).
+- Path to `pilot_questions.jsonl` (the source-of-truth).
+
+The leak-checker Reads both, cross-checks the staged file for:
+- Verbatim ≥8-word substrings of any question or choice text.
+- Unique numerical values from the questions (energies, masses, lengths,
+  weights, etc. — even rounded versions).
+- Distinctive named entities (compounds, isotopes, named equations).
+- Topic-specific vocabulary that fingerprints the question (named
+  techniques, named effects, named regimes).
+
+Returns either "CLEAN — safe to commit" or a per-issue redaction list.
+Iterate redactions + recheck until clean before committing.
+
+**Tool-permission rule for the leak-checker:** Read only. No Write
+(it must not auto-redact; redactions are reviewed by main session).
+
+### 9.7 Contamination patterns to actively prevent
+
+Before any commit, scan the staged `summary.md` for these classes of
+contamination (the leak-checker will catch them, but writing carefully
+the first time is cheaper):
+
+- **Verbatim numerical signatures.** Even a rounded version of a unique
+  question value (rounded to 3 sig figs from a 5-sig-fig source) can
+  uniquely fingerprint the question against the public dataset. Use
+  generic placeholders ("the stated <quantity>") instead.
+- **Topic-specific framing names.** Names of physical effects, named
+  regimes, and named techniques that appear in the question or are
+  obviously implied by it can fingerprint the question. Abstract to
+  "framing α / framing β" with no semantic vocabulary.
+- **Persona-name reveals tied to topic.** Don't list persona roles when
+  describing a contested-case round trajectory if the persona role names
+  are topic-specific (e.g. a sub-discipline label that points at the
+  exact phenomenon the question concerns). Use generic groupings at most
+  ("two from theoretical backgrounds defaulted to framing α").
+- **Convince-mechanism quotes.** Don't include direct quotes from
+  persona reasoning, even paraphrased — they're the densest source of
+  question content. Describe the rhetorical move abstractly.
+- **Choice-text reveals.** When showing per-question outcomes, the
+  letter is fine but the underlying choice text is not. Don't write
+  "gold = X (<choice word>)"; write just "gold = X".
+
+### 9.8 Iteration cleanup at start
+
+At the start of each iteration, archive the previous iteration's
+transcript files into a subdirectory:
+
+```bash
+mkdir -p eval/transcripts/iteration_<N-1>
+mv eval/transcripts/gpqa_*.txt eval/transcripts/iteration_<N-1>/
+```
+
+Reason: the iter-N question pool is sampled fresh, but the gpqa_XXX id
+naming restarts from 0 each iteration. Without archiving, iter-N
+transcripts collide with iter-(N-1) transcripts at the same paths.
+Iter-2 hit this and had to archive mid-run.
+
+### 9.9 Tool-permission summary (per role)
+
+| Role | Read | Write | Bash | Other tools |
+|---|---|---|---|---|
+| Eval sub-agent (decomposer, persona, synthesizer) | ❌ | ✅ once after reasoning | ❌ | ❌ |
+| Planner sub-agent | ✅ (transcripts only) | ❌ | ❌ | ❌ |
+| Auditor sub-agent | ✅ | ❌ | ❌ | ❌ |
+| Grader sub-agent | ✅ (`pilot_questions.jsonl`) | ✅ (`pilot_results.jsonl`) | ❌ | ❌ |
+| Leak-checker sub-agent | ✅ | ❌ | ❌ | ❌ |
+| Variance trial (= zero-shot CoT eval) | ❌ | ✅ once after reasoning | ❌ | ❌ |
+| Main session | only when unavoidable | ✅ | ✅ (script invocation, file ops) | Agent (only main has it) |
+
+Round-N+1 evals (debate continuations) are an exception: they get Read
+access scoped to specific round-N transcript paths, plus Write at the end.
+This is the planner-Read pattern (§9.3) — the planner builds a prompt
+that gives the eval sub-agent the file paths to Read.
+
+### 9.10 Question splitter (proposed for iter-3+, not yet tested)
+
+Iter-2's main session read `pilot_questions_blinded.jsonl` (a stripped
+version of `pilot_questions.jsonl` with the `answer` field removed) once
+to extract id+question+choices for prompt construction. That works but
+ingests all 10 question texts into main context.
+
+For iter-3+, consider a "question splitter" sub-agent at the very start:
+Reads `pilot_questions.jsonl`, writes 10 per-id files like
+`eval/transcripts/{id}_question.txt` containing question + choices but
+NOT the answer field. Then cycle-1 planners get the path to their target
+question file, Read it themselves, and build the decomposer prompt.
+
+This eliminates main-session ingestion of question texts entirely. The
+splitter sub-agent is Read+Write, blinded against persisting the gold
+field (it can see gold while it filters but must not Write it anywhere).
+
+Untested in iter-2; iter-3 should validate that planners can correctly
+substitute Read'd question text into the decomposer template.

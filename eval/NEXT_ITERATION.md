@@ -1,46 +1,52 @@
-# Task brief for the next Claude Code session
+# Task brief for the next Claude Code session (iteration 3)
 
 > **If you are a Claude Code session reading this:** this file is your task
-> brief. Read all of it, then execute Section 4 (Runbook) end-to-end. Read
-> `eval/PROTOCOL_v2.md` for the architecture, prompt templates, and
-> anti-leakage rules. Read `eval/summary.md` for the iteration-1 baseline.
-> Do not read the GPQA CSV or the gitignored question files yourself —
-> the runbook delegates question handling to a script and to blinded
-> sub-agents.
+> brief. Read all of it, then execute Section 4 (Runbook) end-to-end.
+>
+> Read first:
+> - `eval/PROTOCOL_v2.md` — architecture, prompt templates, anti-leakage
+>   rules, and **§9 amendments** (mandatory for iter-3+; codifies patterns
+>   iter-2 arrived at after several mid-run course corrections).
+> - `eval/summary.md` — iter-1 and iter-2 results.
+>
+> **Do not read** `eval/pilot_questions.jsonl` or any iter-3 transcript
+> file directly. The protocol delegates question text and gold answers to
+> blinded sub-agents.
 
 ---
 
 ## 1. Context
 
 This repo runs a multi-persona-debate vs zero-shot-CoT pilot eval on GPQA
-Diamond. **Iteration 1 has run.** Results are in `eval/summary.md`. Both
-conditions hit 10/10 on a draw of 10 questions; the only meaningful
-data point was gpqa_006, where A has ~80% accuracy across 10 trials but
-B's debate converged unanimously to the correct answer in 2 rounds.
+Diamond. **Iterations 1 and 2 have run.** Both achieved A=10/10. Iter-1
+got B=10/10 (1 contested case where B's debate added robustness over noisy
+A). Iter-2 got B=9/10 (1 contested case where B's debate flattened a
+correct outlier under a sophisticated-sounding wrong argument).
 
-**Your job: run iteration 2** on a *different* draw of 10 questions using
-the v2 protocol, append results to `eval/summary.md`, and commit.
+Across iter-1 + iter-2, the 2 contested cases are split 1-1 — no directional
+signal yet. Iter-3 is meant to disambiguate, but per `summary.md`'s closing
+note, an even more interesting question is whether B's win/loss direction
+is predictable from prompt features.
+
+Iter-3's job: run the v2-amended protocol on a fresh draw of 10 questions,
+plus k=4 A-variance per question (broader coverage than iter-2's
+contested-only k=4), append results to `summary.md`, commit (after
+leak-check), push the iteration branch, and fast-forward main.
 
 ---
 
-## 2. Critical: do NOT see the gold answers yourself
+## 2. Critical: blinding
 
-Methodology blinding requires that **you (the parent session) never read
-the `answer` field** of any question file before grading. The protocol
-keeps gold-answer access mechanical:
+**The parent session never reads gold answers.** Iter-2 introduced an
+opus blinded grader (PROTOCOL_v2 §9.5) that reads `pilot_questions.jsonl`
+itself and returns just headline counts. Use that pattern. Do NOT manually
+read `pilot_questions.jsonl` at any point.
 
-- `eval/pilot_questions.jsonl` (gitignored) contains questions WITH gold
-  answers. Do not Read this file directly. Only blinded sub-agents access
-  question content via the prompts you build.
-- For each question, you'll work from id + question text + choices A–D
-  (no `answer` field) when constructing prompts.
-- Grading happens at the very end: read each row's `answer` field once,
-  compare to the recorded A and B answers, write to
-  `pilot_results.jsonl`. **Do this only after all sub-agent runs are
-  complete.**
+Also: do not Read the answer field of any question file even via Bash
+(`grep`, `head`, `cat`, etc.) — those land in main context as stdout.
 
-If you find yourself reading any file with question text + gold mid-run,
-stop and reconsider.
+If you find yourself reading any file that contains the `answer` field,
+stop and reconsider — that's a blinding violation.
 
 ---
 
@@ -52,25 +58,28 @@ Run these in the listed order. Halt and ask the user if any check fails.
 # 3a. Branch handling
 git status --short
 git branch --show-current
-# If your environment (e.g. claude.ai/code) auto-created a branch like
-# `claude/<task>-<suffix>`, you're already on the right branch — proceed.
-# If you're on `main`, create a fresh branch for this iteration:
-#     git checkout -b iteration-2     (or iteration-N for subsequent runs)
-# Either way, the working tree should be clean.
+# If on `main`, branch off: git checkout -b iteration-3
+# If your environment auto-created a branch (e.g. `claude/...`), you may
+# already be on the right branch — proceed.
+# Either way, working tree should be clean (a stray .DS_Store is fine).
 
 # 3b. Ledger and CSV present
 test -f eval/used_csv_indices.txt && wc -l eval/used_csv_indices.txt
-# expect: at least 10 non-comment lines (iteration 1's indices)
+# expect: at least 25 lines (iter-1 + iter-2 indices + comment header).
+# 178 of 198 GPQA Diamond rows remain unused.
 
 test -f eval/GPQA/gpqa_diamond.csv && wc -l eval/GPQA/gpqa_diamond.csv
-# expect: ~199 lines (198 rows + header)
+# expect: ~9000+ lines (CSV cells contain newlines from question text).
 
-# 3c. Iteration 1 artifacts present
-ls eval/transcripts/ | wc -l
-# expect: 50+ files from iteration 1
+# 3c. Iter-1 + iter-2 transcripts present
+ls eval/transcripts/iteration_1/ | wc -l   # expect ~68 files
+test -d eval/transcripts/iteration_1 && echo "iter-1 archived"
+ls eval/transcripts/                       # iter-2's transcripts are at
+                                           # the top level still — you'll
+                                           # archive them in step 4a.
 
 test -f eval/PROTOCOL_v2.md && test -f eval/summary.md
-# expect: both exist
+# expect: both exist; PROTOCOL_v2 has a §9 amendments section.
 ```
 
 If `eval/GPQA/gpqa_diamond.csv` is missing, ask the user to drop the CSV at
@@ -80,7 +89,21 @@ that path and stop.
 
 ## 4. Runbook
 
-### 4a. Sample 10 new questions (no replacement)
+### 4a. Archive iter-2 transcripts (PROTOCOL_v2 §9.8)
+
+```bash
+mkdir -p eval/transcripts/iteration_2
+mv eval/transcripts/gpqa_*.txt eval/transcripts/iteration_2/
+mv eval/transcripts/contaminated_round1 eval/transcripts/iteration_2/ \
+   2>/dev/null || true   # iter-2 had a contaminated-round-1 archive subdir
+ls eval/transcripts/   # expect: iteration_1, iteration_2 (and possibly
+                       # already-empty top level)
+```
+
+iter-3's transcript files will use the same `gpqa_XXX_*.txt` naming at the
+top level, distinct from the archived iter-1/iter-2 paths.
+
+### 4b. Sample 10 new questions
 
 ```bash
 python3 eval/csv_to_questions.py \
@@ -89,195 +112,173 @@ python3 eval/csv_to_questions.py \
     --update-ledger
 ```
 
-Verify output: should report `Pool: 198 total rows, 10 used, 188 available.
-Sampling 10.` and `Appended 10 indices to eval/used_csv_indices.txt.`
+Verify output reports something like `Pool: 198 total rows, 20 used,
+178 available. Sampling 10.` and `Appended 10 indices to
+eval/used_csv_indices.txt.`
 
-`eval/pilot_questions.jsonl` is now populated with 10 new questions
-(gpqa_000 … gpqa_009). It is gitignored.
+`eval/pilot_questions.jsonl` is now populated with 10 new questions and
+is gitignored.
 
-Do **not** Read `pilot_questions.jsonl` directly. Build a blinded view by
-running:
+**Do not Read this file directly.** Skip the iter-2 pattern of writing a
+"blinded copy" via Python in main; instead, use the question-splitter
+sub-agent below (§4c).
 
-```bash
-python3 -c "
-import json
-for line in open('eval/pilot_questions.jsonl'):
-    d = json.loads(line)
-    print(d['id'], '|', d['domain'])
-    print('  Q:', d['question'][:80] + ('...' if len(d['question'])>80 else ''))
-    for letter, choice in d['choices'].items():
-        print(f'  {letter}) {choice[:60]}')
-    print()
-"
-```
+### 4c. Question splitter (PROTOCOL_v2 §9.10)
 
-This prints id, domain, question preview, and choices — enough to construct
-sub-agent prompts. It does NOT print the `answer` field.
+Dispatch one sub-agent (sonnet, Read+Write only) with this brief: "Read
+`eval/pilot_questions.jsonl`. For each of the 10 lines, write
+`eval/transcripts/{id}_question.txt` containing the question text and the
+4 choices (A/B/C/D) — but NOT the `answer` field. Return only a list of
+the 10 ids and their domains." That gives main session (id, domain) pairs
+without ingesting question content.
 
-For full question text (which you need verbatim in prompts), build prompts
-with:
+The 10 per-id question files are what cycle-1 and cycle-2 planners will
+Read in subsequent steps.
 
-```bash
-python3 -c "
-import json, sys
-qid = sys.argv[1]
-for line in open('eval/pilot_questions.jsonl'):
-    d = json.loads(line)
-    if d['id'] == qid:
-        print('QUESTION:', d['question'])
-        for k,v in d['choices'].items():
-            print(f'{k}) {v}')
-        break
-" gpqa_000
-```
+### 4d. Run Condition A — 10 sonnet zero-shot CoT calls + k=4 variance
 
-This prints question + choices for one id, no answer. Use this output in
-the prompts you build.
+For each id: fire 4 sonnet `Agent` calls in parallel. Each gets a prompt
+that:
+- Tells the sub-agent to Read `eval/transcripts/{id}_question.txt` for
+  question + choices.
+- Asks for step-by-step reasoning.
+- Requires `Answer: <A|B|C|D>` on the final line.
+- Forbids external tools (no Bash, Python, web search) but permits Write
+  once at the end to save full reasoning.
+- Specifies the save path: `eval/transcripts/{id}_A_t{1..4}.txt` (where
+  t1 is the canonical A trial; t2..t4 are variance check trials).
 
-### 4b. Run Condition A — 10 sonnet calls in parallel
+Total: 40 A-instances. Fire in batches of ≤20 parallel `Agent` calls per
+message.
 
-For each id in gpqa_000..gpqa_009, fire one Agent call (model="sonnet")
-with this prompt template (substitute `{question}` and `{A}{B}{C}{D}`):
+Each sub-agent returns only `Answer: <letter>`. Record the 4 letters per
+id; the modal letter (or t1 if multimodal) is `A_answer`. The full
+4-letter sequence is `A_variance_check` (for every id, not just contested).
 
-```
-You are answering a graduate-level multiple-choice question. Think step by step, then on the final line output exactly: `Answer: <A|B|C|D>` (just one of those four letters).
+After dispatch, run an opus auditor (PROTOCOL_v2 §9.4) over the 40 A
+transcripts to spot-check.
 
-Question: {question}
+### 4e. Run Condition B per question — blinded planner pattern
 
-A) {A}
-B) {B}
-C) {C}
-D) {D}
+Per PROTOCOL_v2 §1, §3, and §9 amendments. For each id:
 
-Reason from your own knowledge only. Do not use external tools (no Bash, Python, web search, etc.).
-```
+1. **Cycle-1 planner** (sonnet, Read tool only): Reads
+   `eval/transcripts/{id}_question.txt`, builds the decomposer prompt with
+   §3 anti-leakage guards, returns JSON: `{action:"fire", calls:[{role:"decomposer", prompt:"..."}]}`. Decomposer prompt should NOT include answer choices (per §5.2).
+2. **Decomposer** (sonnet eval, Write at end only): per §3 template +
+   §9.2 self-save. Saves persona blocks to `{id}_B_decomposer.txt`,
+   returns only the persona blocks in its final reply (those are short).
+3. **Cycle-2 planner** (sonnet, Read tool only): Reads
+   `{id}_B_decomposer.txt` AND `{id}_question.txt`, builds 4 round-0
+   prompts (one per persona) per §3 round-0 template + §9.2 self-save
+   addendum. Returns JSON with 4 calls.
+4. **Round 0** (4 sonnet evals in parallel, Write at end only): each
+   saves to `{id}_B_round0_p{1..4}.txt`, returns only `Answer: <letter>`.
+5. **Unanimity check.** If all 4 letters agree → DONE. Final B answer =
+   consensus. Skip synthesizer (§4 conditional).
+6. **If split** — invoke cycle-3 planner (sonnet, Read tool only): Reads
+   the 4 round-0 transcripts AND the decomposer file AND the question
+   file, builds 4 round-1 prompts using the planner Read pattern (§9.3):
+   each round-1 prompt should NOT inline transcripts; instead it should
+   instruct the round-1 eval to Read its own copy of the round-0 files.
+   Round-1 framing: "propose your refined answer, addressing weaknesses
+   you see in others' reasoning."
+7. **Round 1** (4 sonnet evals in parallel, Read+Write only): each Reads
+   the 4 round-0 transcripts itself, then saves its round-1 reasoning to
+   `{id}_B_round1_p{1..4}.txt`, returns only `Answer: <letter>`.
+8. **Continue rounds 2 (even, "critique"), 3, 4** (alternating
+   propose/critique) if needed, with cycle-{4,5,6} planners and round-N
+   evals following the same Read-themselves pattern.
+9. **If round 4 ends without consensus**: run synthesizer (§3 template).
+   Save to `{id}_B_synthesizer.txt`. Final B answer = parsed from
+   synthesizer.
 
-Save each raw response to `eval/transcripts/{id}_A.txt`. Parse the final
-letter via regex `Answer:\s*([A-D])` (fall back to whole-text scan if
-final-line match fails; mark `PARSE_FAIL` if both fail).
+After each round, run an opus auditor (§9.4) over that round's
+transcripts. For contested rounds, ask the auditor to describe each
+persona's reasoning frame in 1 sentence.
 
-Fire all 10 in one message for parallelism.
+### 4f. Variance check protocol (broadened from iter-2)
 
-### 4c. Run Condition B per question — blinded planner pattern
+Iter-2 ran k=4 only on the contested case. Iter-3 runs k=4 on every
+question — that's already covered by §4d above (4 A-instances per id
+fired up front). No additional dispatch needed for variance.
 
-Per `eval/PROTOCOL_v2.md` §1 and §3. Fresh planner each cycle (no
-SendMessage continuation in this environment).
+### 4g. Grade with the opus blinded grader
 
-For each question, the cycle is:
-
-1. **Cycle-1 planner** (sonnet, blinded): builds decomposer prompt with
-   §3 anti-leakage rules. Returns `{action:"fire", calls:[{id:"decomposer", prompt:"..."}]}`.
-2. **Decomposer** (sonnet eval): produces 4 personas. Save raw to
-   `{id}_B_decomposer.txt`.
-3. **Cycle-2 planner** (sonnet, blinded): parses 4 personas, builds 4
-   round-0 prompts. Returns 4 fire instructions.
-4. **Round 0** (4 sonnet evals in parallel): save each to
-   `{id}_B_round0_p{1..4}.txt`. Parse letters.
-5. **If unanimous → DONE.** Final B answer = consensus letter. Skip
-   synthesizer (per PROTOCOL_v2 §4).
-6. **If split**: cycle-3 planner builds round-1 prompts (TRANSCRIPT =
-   verbatim concat of round 0). Round 1 odd → "propose refined answer."
-   Save responses, check unanimous.
-7. **Continue** rounds 2 (even, "critique"), 3 (odd, "propose"),
-   4 (even, "critique") if needed. Stop on unanimous.
-8. **If round 4 ends without consensus**: run synthesizer on full
-   transcript. Save to `{id}_B_synthesizer.txt`. Final B answer = parsed
-   from synthesizer.
-
-**Important reminders from PROTOCOL_v2 §5:**
-
-- Every planner prompt must include: *"You will NOT call any tools.
-  Output exactly ONE JSON object on a single line. Do not pre-solve
-  the problem."* If a planner returns with `tool_uses > 0`, treat as
-  hard fail and re-fire that planner.
-- Every eval prompt must end with: *"Reason from your own knowledge
-  only. Do not use external tools (no Bash, Python, web search, etc.)."*
-- Decomposer prompt must include the anti-leakage block from
-  PROTOCOL_v2 §3 ("Persona descriptions must be ROLE-ONLY..." etc.).
-
-### 4d. Variance check on contested questions
-
-For any question where **A's answer disagrees with B's consensus**, fire
-**3 additional A-instances** (sonnet, same prompt as 4b) to estimate A's
-variance on that question. Record letters; this gives a 4-trial
-distribution per contested question.
-
-(In iteration 1, a 10-instance variance check on gpqa_006 — the only
-contested-within-B question — revealed A had ~80% accuracy there. Future
-iterations should at least sample k=4 on contested questions.)
-
-### 4e. Grade and write results
-
-**Now** read `eval/pilot_questions.jsonl` to access gold answers. For each
-question append a row to `eval/pilot_results.jsonl`:
+Pass the grader (opus, Read+Write only) a per-id dict like:
 
 ```json
-{"id": "gpqa_000", "domain": "...", "gold": "C",
- "A_answer": "C", "A_correct": true,
- "A_variance_check": null,
- "B_answer": "C", "B_correct": true,
- "B_rounds_used": 0, "B_consensus_reached": true,
- "B_synthesizer_used": false}
+{
+  "gpqa_000": {"A_answer":"<modal letter>","B_answer":"<final letter>","B_rounds_used":<int>,"B_consensus_reached":<bool>,"B_synthesizer_used":<bool>,"A_variance_check":["<l1>","<l2>","<l3>","<l4>"]},
+  ...
+}
 ```
 
-For contested questions add `"A_variance_check": ["C","C","D","C"]` (the
-4 sampled letters).
+Grader Reads `pilot_questions.jsonl` itself, computes correctness, writes
+`eval/pilot_results.jsonl`, and returns only headline counts + flip cases
++ contested-case variance breakdown. Do NOT have it echo gold letters of
+non-contested ids back to main.
 
-### 4f. Append to eval/summary.md
+### 4h. Append to summary.md (with leak-aware writing)
 
-Add a new section "## Iteration 2 (N=10, sonnet eval)" with:
+Add a new section "## Iteration 3 (N=10, sonnet eval, ...)" with:
+- Headline accuracy table for A and B.
+- Per-question outcome table (id, domain, A, B, gold, B_rounds_used,
+  notes). The id+domain+letter table is permissible per dataset terms;
+  the underlying choice text is not.
+- A_variance_check distribution per id (just letter sequences, no
+  semantic content).
+- For any contested case: an abstracted round-trajectory using
+  Lα/Lβ-style placeholders. NO topic-specific vocabulary, NO unique
+  numerical values, NO persona-role names. See PROTOCOL_v2 §9.7 for
+  the contamination patterns to actively prevent.
+- Methodology notes: what worked, what didn't, anything new this
+  iteration.
 
-- Headline accuracy table for A and B
-- Per-question outcome table (id, A, B, gold, B_rounds_used, notes)
-- Detail on any contested case (round-by-round dynamics)
-- Variance-check results for any question where A and B disagreed
-- Caveats: N still small, sample bias, anything else specific to this draw
+### 4i. Pre-commit leak check (PROTOCOL_v2 §9.6)
 
-Do NOT include verbatim question text in summary.md (per dataset terms).
-Refer to questions by id only.
+Before staging summary.md, dispatch an opus leak-checker (Read only)
+with paths to the staged file and `pilot_questions.jsonl`. It returns
+either "CLEAN" or a redaction list. Iterate redactions until clean.
+**This step is mandatory** — iter-2 caught 5 leak vectors only by
+running the leak-checker, after several rounds of "looks fine" intuition.
 
-### 4g. Commit and merge to main
+### 4j. Commit and merge to main
 
 ```bash
 git status --short
-# expect: only eval/summary.md modified.
+# expect: only eval/summary.md modified (plus possibly PROTOCOL_v2.md or
+# csv_to_questions.py if you intentionally updated them — and any planner
+# instruction docs you may have authored).
 # Verify NOT listed: pilot_questions.jsonl, pilot_results.jsonl,
-# transcripts/, used_csv_indices.txt — all gitignored. If any of those
-# show, the gitignore is broken and the commit will leak question text.
+# transcripts/, used_csv_indices.txt — all gitignored. If any show, the
+# gitignore is broken and the commit will leak question text.
 ```
 
-Stage and commit on the iteration branch:
+Stage and commit:
 
 ```bash
 git add eval/summary.md
-# only summary.md unless you intentionally updated PROTOCOL_v2.md or
-# csv_to_questions.py during this iteration
-
+# also stage PROTOCOL_v2.md / csv_to_questions.py / NEXT_ITERATION.md if
+# you intentionally updated them
 git diff --cached --stat
-# sanity-check the staged set
-
-git commit -m "Iteration N results: <one-line summary>" \
+git commit -m "Iteration 3 results: <one-line summary>" \
     --message "Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 ```
 
-Push the branch and fast-forward main:
+Push the iteration branch and fast-forward main:
 
 ```bash
-# Push the iteration branch first
 git push -u origin HEAD
-
-# Fast-forward merge into main (same pattern iteration 1 used)
 git checkout main && git pull --ff-only origin main
-git merge --ff-only -    # the dash references the previous branch (iteration-N)
+git merge --ff-only -    # references the previous branch (iteration-3)
 git push origin main
-
-# Confirm
 git log --oneline -3
 ```
 
-If the fast-forward fails (because main has moved ahead of the iteration
-branch), stop and ask the user how to proceed — don't force-push, don't
-attempt a merge commit without confirmation.
+If the fast-forward fails (because main has moved ahead), stop and ask
+the user how to proceed. Do not force-push, do not attempt a merge
+commit without confirmation.
 
 ---
 
@@ -285,42 +286,47 @@ attempt a merge commit without confirmation.
 
 - **Sub-agent refuses with Usage Policy error.** Retry once. If still
   refuses, mark that call as ERROR and continue. Persistent refusals on
-  the same question → swap that question for the next available one
-  (run `csv_to_questions.py --n 1 --seed 42 --update-ledger` to draw a
-  replacement; remove the failing question from results).
+  the same question → swap that question for the next available one.
+- **Transient API 500s on planner waves.** Iter-2 hit 4/10 cycle-1
+  planners with 500s; retry resolved them. Plan for retry capacity.
 - **Planner returns non-JSON.** Re-fire with same prompt. If still bad,
-  fall back to mechanical prompt construction (this is editorializing;
-  document it in summary.md as a methodology deviation).
-- **Decomposer fails to produce 4 parseable personas.** Fall back to
-  the generic set (Mechanical Engineer, Theoretical Physicist,
-  Mathematician, Contrarian First-Principles Thinker) and note
-  `fallback_personas_used: true`.
+  fall back to mechanical prompt construction in main, BUT note this as
+  a methodology deviation in summary.md (it violates PROTOCOL_v2 §1).
+- **Decomposer fails to produce 4 parseable personas.** Fall back to the
+  generic set (Mechanical Engineer, Theoretical Physicist, Mathematician,
+  Contrarian First-Principles Thinker) and note `fallback_personas_used:
+  true`.
 - **Round 4 ends without consensus.** Fire synthesizer. Record
   `B_synthesizer_used: true`.
-- **Cost concern**: full B run is ~70-150 sub-agent calls per question
-  in the worst case (each round = 1 planner + 4 evals; up to 4 rounds +
-  synthesizer). For 10 questions plan for 200-500 calls total, plus 10
-  for A and ~30 for variance checks. Pre-approve `Agent` in
-  `/permissions` before starting.
+- **Cost concern.** A 10-question B run with k=4 A is ~140-220 sub-agent
+  calls (4 × 10 A trials = 40, 1 cycle-1 + 1 decomposer + 1 cycle-2 + 4
+  round-0 = 7 per question × 10 = 70, plus contested-question cycle-3
+  planner + 4 round-1 ≈ 5 per contested question, plus auditors after
+  each round, plus the grader, plus the leak-checker). Pre-approve
+  `Agent` and `Bash` in `/permissions` before starting.
 
 ---
 
 ## 6. Quick reference — what NOT to do
 
-- Don't compose round-N prompts yourself by paraphrasing prior rounds —
-  always delegate prompt construction to a blinded planner with verbatim
-  transcript concatenation. Iteration 1 lost methodology rigor here.
-- Don't add the answer choices A–D to the decomposer prompt without the
-  full anti-leakage guard block — sonnet has been observed to embed the
-  answer letter in a persona's TRAITS field when given choices without
-  guards.
+- Don't compose round-N prompts yourself in main session by paraphrasing
+  prior rounds. Always delegate to a blinded planner with verbatim
+  transcript content; the planner Read pattern (§9.3) is preferred over
+  inline embedding.
+- Don't add answer choices to the decomposer prompt without the full
+  anti-leakage guard block (§5.2).
 - Don't skip the no-tools rule on eval prompts. Without it, sub-agents
   reach for Bash/numpy and the conditions become non-comparable.
-- Don't run the synthesizer when consensus is already reached. Per
-  PROTOCOL_v2 §4 it's conditional.
+- Don't run the synthesizer when consensus is already reached (§4
+  conditional).
+- Don't read `pilot_questions.jsonl` directly in main session — use the
+  question splitter (§4c) and the opus blinded grader (§4g + §9.5).
+- Don't `cat` or Read transcripts in main session when downstream
+  sub-agents can Read them themselves (§9.3).
 - Don't commit `eval/transcripts/`, `eval/pilot_*.jsonl`, or
   `eval/used_csv_indices.txt`. They're gitignored — verify before
   committing.
+- Don't commit summary.md without running the leak-checker (§9.6).
 
 ---
 
@@ -328,16 +334,22 @@ attempt a merge commit without confirmation.
 
 You should have:
 
-- `eval/pilot_questions.jsonl` (gitignored): 10 new questions
-- `eval/transcripts/gpqa_000_A.txt … gpqa_009_A.txt` (gitignored)
-- `eval/transcripts/gpqa_000_B_*.txt … gpqa_009_B_*.txt` (gitignored)
+- `eval/pilot_questions.jsonl` (gitignored): 10 new questions for iter-3
+- `eval/transcripts/iteration_2/...` (gitignored): archived iter-2 files
+- `eval/transcripts/{id}_question.txt` (gitignored): per-id question
+  files written by the splitter
+- `eval/transcripts/{id}_A_t{1..4}.txt` (gitignored): 40 A trial files
+- `eval/transcripts/{id}_B_*.txt` (gitignored): decomposer + round-0
+  (+ rounds 1..N if contested) for each id
 - `eval/pilot_results.jsonl` (gitignored): 10 graded rows
-- `eval/summary.md` updated with iteration 2 section (committed)
-- `eval/used_csv_indices.txt` updated (gitignored)
+- `eval/used_csv_indices.txt` (gitignored): updated with 10 new indices
+- `eval/summary.md` updated with iter-3 section (committed, leak-checked)
 
 Report to the user:
-
-- Iteration 2 accuracy for A and B
+- Iteration 3 accuracy for A and B
+- Per-id A_variance_check distributions (any non-unanimous A trials are
+  notable — they indicate questions where prompt-level noise is real)
 - Any flip cases (A and B disagree)
-- Variance results on contested questions
-- Recommended next step (iterate again? expand N? change conditions?)
+- Variance-check breakdown on contested questions
+- Recommended next step (iterate again? expand N? change conditions?
+  shift to studying when B wins vs loses?)

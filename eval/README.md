@@ -1,10 +1,16 @@
 # Multi-Persona CoT — Pilot Evaluation
 
-> **If you are a Claude Code session reading this AFTER iteration 1:**
-> this file is the original v1 task brief, kept for historical context.
-> For iteration 2 and beyond, your task brief is **`eval/NEXT_ITERATION.md`**
-> and the methodology is **`eval/PROTOCOL_v2.md`**. Iteration 1 results
-> are in **`eval/summary.md`**. Read those three files before proceeding.
+> **If you are a Claude Code session reading this in iteration 2 or later:**
+> this file is the original v1 task brief, kept for historical context. It
+> describes the simpler architecture used in iter-1 before the v2 protocol
+> introduced blinded planners and the iter-2 amendments codified the
+> sub-agent self-save / planner Read / opus auditor / opus blinded grader /
+> opus leak-checker patterns.
+>
+> **For your iteration, your task brief is `eval/NEXT_ITERATION.md`** and
+> the methodology is **`eval/PROTOCOL_v2.md`** (especially the §9
+> amendments — they're mandatory for iter-3+). Prior-iteration results are
+> in **`eval/summary.md`**. Read those three files before proceeding.
 >
 > ---
 >
