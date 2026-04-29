@@ -5,10 +5,34 @@ multi-persona-CoT debate methodology. **A fresh session is the intended
 audience** — context-bias from the originating session is a known risk,
 and is called out variant-by-variant below.
 
+> **Status update (post-v_judge / multipool / v5 session)**:
+> Three variants/experiments have been run on Q* (gpqa_007). See
+> `eval/methodology_research/` for leak-clean findings. The next session
+> should read `methodology_research/HANDOFF.md` first; it lays out
+> priority order for next experiments.
+>
+> | Experiment | Status | Headline |
+> |---|---|---|
+> | v_judge | ✅ done | Aggregation rule choice = small effect; pool variance dominates |
+> | multipool | ✅ done | Pool draws asymmetric around gold; baseline is favorable outlier |
+> | v5 (no wager) | ✅ done | Probability prompt not neutral; non-uniform shifts |
+> | v5_v9 (wager arm) | ⏸ deferred | See `methodology_research/wager_arm_spec.md` |
+> | v7 (pre-mortem) | not run | Spec below; lower priority than decomposer interventions |
+> | Decomposer interventions | proposed | See `methodology_research/decomposer_interventions.md` (highest priority) |
+> | Cross-question generalization | proposed | See `methodology_research/cross_question_generalization.md` |
+>
+> **The headline finding across all three completed experiments is
+> structural**: persona-pool variance is a first-order effect on
+> contested questions. Aggregation/representation interventions don't
+> escape that bottleneck. The next-priority experiment is at the
+> decomposer layer, not at aggregation.
+
 The fresh session should:
 - Read this doc and `PROTOCOL_v2.md` (especially §9 amendments).
-- Pick one variant (v5, v_judge, v7, or v9) and run it in isolation
-  against the protocol baseline.
+- Read `methodology_research/HANDOFF.md` for status + priority order.
+- Pick one experiment from `decomposer_interventions.md`,
+  `cross_question_generalization.md`, or `wager_arm_spec.md` and run
+  it in isolation against the protocol baseline.
 - Form its own interpretation of the data. Do NOT inherit prior-session
   narratives about why the methodology fails or succeeds — look at the
   transcripts and decide for yourself.
