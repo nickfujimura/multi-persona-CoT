@@ -5,27 +5,44 @@ multi-persona-CoT debate methodology. **A fresh session is the intended
 audience** — context-bias from the originating session is a known risk,
 and is called out variant-by-variant below.
 
-> **Status update (post-v_judge / multipool / v5 session)**:
-> Three variants/experiments have been run on Q* (gpqa_007). See
-> `eval/methodology_research/` for leak-clean findings. The next session
-> should read `methodology_research/HANDOFF.md` first; it lays out
-> priority order for next experiments.
+> **Status update (post-audit-completion session)**:
+> Four experiments have run on Q* (gpqa_007), and a discussion in the
+> audit-completion session reframed priority order substantially. See
+> `eval/methodology_research/HANDOFF.md` for the full new-session
+> entry point and `eval/methodology_research/uncertainty_gated_evaluation.md`
+> for the new highest-priority experiment spec.
 >
 > | Experiment | Status | Headline |
 > |---|---|---|
 > | v_judge | ✅ done | Aggregation rule choice = small effect; pool variance dominates |
-> | multipool | ✅ done | Pool draws asymmetric around gold; baseline is favorable outlier |
+> | multipool | ✅ done | Pool draws asymmetric around gold (interpretation revised by audit) |
 > | v5 (no wager) | ✅ done | Probability prompt not neutral; non-uniform shifts |
-> | v5_v9 (wager arm) | ⏸ deferred | See `methodology_research/wager_arm_spec.md` |
-> | v7 (pre-mortem) | not run | Spec below; lower priority than decomposer interventions |
-> | Decomposer interventions | proposed | See `methodology_research/decomposer_interventions.md` (highest priority) |
-> | Cross-question generalization | proposed | See `methodology_research/cross_question_generalization.md` |
+> | Decomposer orthogonality audit | ✅ done | All 5 frameworks present in all 7 pools — multipool's "low coverage" interpretation refuted; bottleneck is *within-framework* heterogeneity |
+> | **Uncertainty-gated evaluation** | **proposed (highest priority)** | Population-scale test of methodology levers, with test/holdout discipline. ~1500 calls. See spec. |
+> | Audit refinement (F1 sub-classification) | proposed (cheap diagnostic) | ~1–2 calls; run during uncertainty-gated Phase 3 |
+> | v5_v9 (wager arm) | ⏸ deferred indefinitely | See `methodology_research/wager_arm_spec.md` |
+> | v7 (pre-mortem) | folded into uncertainty-gated Lever C | See spec |
+> | Decomposer interventions #2–#4 | priority downgraded | See `methodology_research/decomposer_interventions.md`; audit shows roster-level coverage is not the bottleneck |
+> | Cross-question generalization | superseded by uncertainty-gated | See `methodology_research/cross_question_generalization.md` (kept for reference) |
 >
-> **The headline finding across all three completed experiments is
-> structural**: persona-pool variance is a first-order effect on
-> contested questions. Aggregation/representation interventions don't
-> escape that bottleneck. The next-priority experiment is at the
-> decomposer layer, not at aggregation.
+> **Two reframings drove the priority change**:
+> 1. The decomposer audit showed roster-level framework coverage on
+>    Q* is uniformly high — the prior bottleneck hypothesis is wrong.
+>    The actual variance source is *within-framework* reasoning-path
+>    heterogeneity (F1, the dominant framework, splits into
+>    gold-voting and non-gold-voting subpaths without any role-level
+>    signal distinguishing them).
+> 2. Sonnet 4.6 hits ~90% on GPQA Diamond zero-shot. Iter-2's A=10/10
+>    vs B=9/10 means the methodology may be net-zero or net-negative;
+>    n=10 can't tell. The iter-N pattern is structurally underpowered
+>    for population-level methodology claims at this baseline. We
+>    need ~200 questions to detect 5pp effects, and we need to filter
+>    to questions where the methodology has anything to do
+>    (zero-shot uncertain) for tractable signal.
+>
+> Both reframings point to the same redesign: gate by zero-shot
+> uncertainty, test methodology levers as factors on a dev set,
+> validate on a sealed holdout. That's `uncertainty_gated_evaluation.md`.
 
 The fresh session should:
 - Read this doc and `PROTOCOL_v2.md` (especially §9 amendments).

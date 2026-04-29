@@ -1,11 +1,24 @@
 # Cross-question generalization — design
 
+> **Superseded by `uncertainty_gated_evaluation.md`.** The new spec
+> generalizes this design with (a) zero-shot uncertainty filtering as
+> the inclusion criterion, (b) test/holdout discipline to avoid
+> overfitting methodology to the dev set, and (c) factored lever
+> testing rather than per-question pool sweeps. Read
+> `uncertainty_gated_evaluation.md` first.
+>
+> This document is kept intact for reference — its analysis approach
+> (per-question modal distribution tables) and its bias-leak
+> discussion remain useful, and parts of the spec inform Phase 1 of
+> the new design.
+
 The three experiments to date were all run on Q* (a single
 contested question). The headline finding from `findings_multipool.md`
 — that pool draws are asymmetric around gold — could be either
 **a general property of contested questions** or **Q*-specific**.
 
-This experiment tests which.
+This experiment tested which (now subsumed by the broader
+uncertainty-gated evaluation).
 
 ## Hypothesis
 

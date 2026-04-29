@@ -1,22 +1,58 @@
 # Decomposer-level interventions — design ideas
 
-The `findings_multipool.md` headline is: **the bottleneck on
+> **Update from `findings_decomposer_audit.md` (intervention #1 done):**
+> The audit refutes the `findings_multipool.md` interpretation that
+> motivated this doc. Roster-level framework coverage on Q* is
+> **uniformly high** — all 5 plausible frameworks for Q* are present
+> in all 7 pools. The bottleneck is not at the decomposer layer; it
+> is at the persona-execution layer (within-framework reasoning-path
+> heterogeneity). **Interventions #2, #3, #4 are priority-downgraded.**
+> They target a layer that the audit shows is not the bottleneck.
+> Read `findings_decomposer_audit.md` and `HANDOFF.md` before
+> investing in any of them.
+
+The original framing for this doc:
+
+The `findings_multipool.md` headline was: *the bottleneck on
 contested questions is at the decomposer layer, not at aggregation
-or output format.** Multi-pool ensembling fails because pool draws
-are asymmetric around gold — 5 of 6 §3 orthogonal decomposer draws
-on Q* land in the wrong-framework persona space.
+or output format.* Multi-pool ensembling fails because pool draws
+appeared asymmetric around gold — 5 of 6 §3 orthogonal decomposer
+draws on Q* landed in the wrong-direction modal verdict at most N
+values.
 
-The natural next experiments are **decomposer-level interventions**
-that try to make the persona pool more reliably surface the gold-
-aligned reasoning framework — without leaking the answer.
+The natural next experiments were therefore **decomposer-level
+interventions** that try to make the persona pool more reliably
+surface the gold-aligned reasoning framework — without leaking the
+answer.
 
-This doc lists four candidate interventions in priority order. Run
-the first (zero new dispatches) before any of the others; results
-inform which of #2–#4 to pursue next.
+This doc lists four candidate interventions in priority order. The
+first (intervention #1 — analytical, zero dispatches) has now been
+run and reported in `findings_decomposer_audit.md`. Its result
+substantively revises the priority of #2–#4 below.
 
 ---
 
-## 1. Decomposer orthogonality audit (analytical, no new dispatches)
+## 1. Decomposer orthogonality audit (analytical, no new dispatches) — DONE
+
+**Status: completed.** See `findings_decomposer_audit.md` for the
+leak-clean findings; raw experiment data is in
+`eval/transcripts/experiment_decomposer_audit/` (gitignored).
+
+**Headline result:** All 5 reasoning frameworks the question admits
+are present in all 7 pools — the "framework α appears in only ~3 of
+6 pools" interpretation from `findings_multipool.md` is **not
+supported** at the roster level. Roster-level framework coverage is
+not the bottleneck; within-framework reasoning-path heterogeneity is.
+
+**Implication for #2, #3, #4 below:** all three interventions target
+roster-level framework coverage. The audit shows this is not the
+bottleneck. Their expected accuracy benefit is therefore much
+smaller than originally hypothesized. The audit's recommendation is
+to redirect effort toward (a) cross-question generalization and
+(b) persona-execution-layer interventions; see
+`HANDOFF.md` priority order.
+
+**Original spec (kept for record):**
 
 **Cost**: 0 sub-agent calls (analysis of existing decomposer outputs).
 **Information value**: high — empirically grounds the multi-pool
