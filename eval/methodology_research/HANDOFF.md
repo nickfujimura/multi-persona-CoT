@@ -36,22 +36,17 @@ Read those before designing any new experiment.
 
 ## What to NOT do (lessons learned)
 
-1. **Don't infer gold from secondary documentation.** The
-   originating session inferred gold = A from `NEXT_ITERATION.md`
-   summary references; the grader returned gold = B. Always verify
-   via blinded grader before interpreting verdicts.
-
-2. **Don't repeatedly tweak aggregation in the hope of
+1. **Don't repeatedly tweak aggregation in the hope of
    improvement.** The bottleneck is upstream of aggregation; try
    `decomposer_interventions.md` ideas first.
 
-3. **Don't assume "tyranny of majority avoidance" is a bias leak.**
+2. **Don't assume "tyranny of majority avoidance" is a bias leak.**
    It's a standard general judgment instruction. Bias leaks are
    about *what* to look for (specific axes, named failure modes),
    not *how* to judge (counting vs reasoning). See the bias-leak
    discussion in `findings_v_judge.md`.
 
-4. **Don't forget to check session-context bias.** This session
+3. **Don't forget to check session-context bias.** This session
    spent ~600+ sub-agent calls on Q* and saw extensive persona
    reasoning. The findings docs are designed to be read without
    that context — read them as a peer reviewer would, not as the

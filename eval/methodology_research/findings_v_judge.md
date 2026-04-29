@@ -148,10 +148,6 @@ Aggregation choice doesn't escape that failure mode.
 - One persona-pool sample per arm. The "baseline >> fresh" effect
   could partly be unlucky fresh draw — see `findings_multipool.md`
   for the multi-pool follow-up.
-- Pre-experiment inference about gold was wrong (predicted one letter,
-  actual was the other). Future sessions inheriting this work should
-  verify gold via blinded grader rather than infer it from secondary
-  documentation.
 
 ## Files
 
